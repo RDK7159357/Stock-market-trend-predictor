@@ -26,7 +26,7 @@ def main():
     print(f"\nPredicting stock trends for the next {days_to_predict} days...\n")
 
     # Load and preprocess data
-    df = pd.read_csv("Amazon.csv")
+    df = pd.read_csv("./dataset/Amazon.csv")
     df = df.drop([0, 1])
     df.columns = ['Date', 'Close', 'High', 'Low', 'Open', 'Volume']
     df.reset_index(drop=True, inplace=True)
@@ -179,7 +179,7 @@ def main():
     model.compile(optimizer='adam', loss='mean_squared_error')
 
     print("Training LSTM model... (This may take a few minutes)")
-    history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_test, y_test), verbose=1)
+    history = model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y_test), verbose=1)
     print("Model training complete!\n")
 
     # Evaluate on test data
