@@ -72,7 +72,8 @@ const generateChartHTML = (data: PredictionData | null, isDarkMode: boolean) => 
 
 export default function PredictScreen() {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [numDays, setNumDays] = useState("20");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [data, setData] = useState<PredictionData | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -89,21 +90,35 @@ export default function PredictScreen() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const resp = await fetch("http://192.168.68.100:5000/predict", {
+      const resp = await fetch("http://192.168.68.103:5000/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ days: numDays })
+        body: JSON.stringify({ start_date: startDate, end_date: endDate })
       });
       const json = await resp.json();
-      setData(json);
+      
+      if (json.error) {
+        console.error(json.error);
+        setData(null);
+      } else {
+        // Ensure prices are formatted to 2 decimal places
+        const formattedPrices: string[] = json.prices.map((p: number | string): string => parseFloat(String(p)).toFixed(2));
+        setData({
+          dates: json.dates,
+          prices: formattedPrices,
+          trends: json.trends
+        });
+      }
     } catch (err) {
       console.error(err);
+      setData(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
-
+  
   const getLabels = (dates: string[]) => {
-    if (dates.length <= 7) return dates;
+    if (!dates || dates.length <= 7) return dates || [];
     const step = Math.ceil(dates.length / 7);
     return dates.map((d, i) => (i % step === 0 ? d : ""));
   };
@@ -115,8 +130,8 @@ export default function PredictScreen() {
 
   if (data) {
     const pricesNum = data.prices.map(p => parseFloat(p));
-    upCount = data.trends.filter(t => t === "Up").length;
-    downCount = data.trends.filter(t => t === "Down").length;
+    upCount = data.trends?.filter?.(t => t === "Up")?.length || 0;
+    downCount = data.trends?.filter?.(t => t === "Down")?.length || 0;
     minPrice = Math.min(...pricesNum);
     maxPrice = Math.max(...pricesNum);
     avgPrice = pricesNum.reduce((a, b) => a + b, 0) / pricesNum.length;
@@ -154,35 +169,67 @@ export default function PredictScreen() {
         />
       </TouchableOpacity>
 
-      <Text style={{ 
-        fontSize: 16, 
-        color: colors.text, 
-        marginBottom: 5, 
-        fontWeight: '600' 
-      }}>
-        Enter number of days (1-365):
-      </Text>
+      <View style={{ marginVertical: 10 }}>
+        <Text style={{ 
+          fontSize: 16, 
+          color: colors.text, 
+          marginBottom: 5, 
+          fontWeight: '600' 
+        }}>
+          Start Date (YYYY-MM-DD):
+        </Text>
+        <TextInput
+          style={{ 
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 8,
+        marginVertical: 10,
+        padding: 12,
+        fontSize: 16,
+        backgroundColor: colors.cardBackground,
+        color: colors.text,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+          }}
+          value={startDate}
+          onChangeText={setStartDate}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor={`${colors.text}88`}
+        />
+      </View>
 
-      <TextInput
-        style={{ 
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: 8,
-          marginVertical: 10,
-          padding: 12,
-          fontSize: 16,
-          backgroundColor: colors.cardBackground,
-          color: colors.text,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-        }}
-        keyboardType="numeric"
-        value={numDays}
-        onChangeText={setNumDays}
-        placeholderTextColor={colors.text + '88'}
-      />
+      <View style={{ marginVertical: 10 }}>
+        <Text style={{ 
+          fontSize: 16, 
+          color: colors.text, 
+          marginBottom: 5, 
+          fontWeight: '600' 
+        }}>
+          End Date (YYYY-MM-DD):
+        </Text>
+        <TextInput
+          style={{ 
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 8,
+        marginVertical: 10,
+        padding: 12,
+        fontSize: 16,
+        backgroundColor: colors.cardBackground,
+        color: colors.text,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+          }}
+          value={endDate}
+          onChangeText={setEndDate}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor={`${colors.text}88`}
+        />
+      </View>
 
       <Button 
         title="Predict" 
@@ -196,7 +243,7 @@ export default function PredictScreen() {
         </View>
       )}
 
-      {data && (
+      {data ? (
         <>
           <Text style={{ 
             marginTop: 25, 
@@ -243,7 +290,7 @@ export default function PredictScreen() {
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.1,
-                shadowRadius: 6,
+                shadowRadius: 4,
               }}
             />
           </ScrollView>
@@ -385,17 +432,19 @@ export default function PredictScreen() {
                 <Text 
                   style={{ 
                     fontWeight: '600',
-                    color: data.trends[index] === 'Up' ? colors.up : colors.down,
+                    color: data.trends?.[index] === 'Up' ? colors.up : colors.down,
                     flex: 1,
                     textAlign: 'right'
                   }}
                 >
-                  {data.trends[index]}
+                  {data.trends?.[index] || 'N/A'}
                 </Text>
               </View>
             ))}
           </View>
         </>
+      ) : (
+        <Text style={{ color: colors.text }}>No data available. Please check the dates and try again.</Text>
       )}
     </ScrollView>
   );
